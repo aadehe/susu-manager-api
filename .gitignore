@@ -1,0 +1,17 @@
+# Gradle
+.gradle/
+build/
+
+# IntelliJ IDEA
+.idea/*
+!.idea/.gitignore
+
+# Kotlin
+*.class
+out/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
