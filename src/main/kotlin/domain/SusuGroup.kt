@@ -53,5 +53,12 @@ class SusuGroup(val weeklyContribution: Money) {
         return weeklyContribution - contributionPaidBy(memberId)
     }
 
+    fun fullyPaidMembers(): List<Member> {
+        return memberList.filter { member ->
+            contributionPaidBy(member.id) == weeklyContribution
+        }
+    }
+
+
 
 }

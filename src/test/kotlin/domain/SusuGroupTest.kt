@@ -171,5 +171,45 @@ class SusuGroupTest {
     }
 
 
+    @Test
+    fun `fully paid members are reported correctly`() {
+        val group = SusuGroup(Money.fromCedis(50))
+        val ama = Member("1", "Ama")
+        val kofi = Member("2", "Kofi")
+        val esi = Member("3", "Esi")
+
+        group.addMember(ama)
+        group.addMember(kofi)
+        group.addMember(esi)
+
+        group.recordContribution("1", Money.fromCedis(50))
+        group.recordContribution("2", Money.fromCedis(30))
+
+        assertEquals(
+            listOf(ama),
+            group.fullyPaidMembers()
+        )
+    }
+
+    @Test
+    fun `outstanding dues are reported for each member`() {
+        val group = SusuGroup(Money.fromCedis(50))
+
+        group.addMember(Member("1", "Ama"))
+        group.addMember(Member("2", "Kofi"))
+
+        group.recordContribution("1", Money.fromCedis(30))
+
+        assertEquals(
+            Money.fromCedis(20),
+            group.outstandingContributionFor("1")
+        )
+        assertEquals(
+            Money.fromCedis(50),
+            group.outstandingContributionFor("2")
+        )
+    }
+
+
 
 }
