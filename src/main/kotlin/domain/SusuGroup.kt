@@ -123,4 +123,5 @@ class SusuGroup(val weeklyContribution: Money) {
 
         return payout
     }
+
 }

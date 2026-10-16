@@ -338,4 +338,5 @@ class SusuGroupTest {
 
         assertEquals(listOf(ama), group.members)
     }
+
 }
