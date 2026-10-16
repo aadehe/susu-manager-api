@@ -1,8 +1,12 @@
 package com.example.domain
 
 class SusuGroup(val weeklyContribution: Money) {
+    var currentWeek: Int = 1
+        private set
     private val memberList = mutableListOf<Member>()
-    private val contributionsByMember = mutableMapOf<String, Money>()
+//    private val contributionsByMember = mutableMapOf<String, Money>()
+    private val contributionsByWeek =
+        mutableMapOf<Int, MutableMap<String, Money>>()
 
 
     val members: List<Member>
@@ -20,7 +24,10 @@ class SusuGroup(val weeklyContribution: Money) {
         }
 
         memberList.add(member)
-        contributionsByMember[member.id] = Money.fromPesewas(0)
+        contributionsByWeek
+            .getOrPut(currentWeek) { mutableMapOf() }[member.id] =
+            Money.fromPesewas(0)
+//        contributionsByMember[member.id] = Money.fromPesewas(0)
     }
 
     fun recordContribution(memberId: String, amount: Money) {
@@ -38,7 +45,9 @@ class SusuGroup(val weeklyContribution: Money) {
             "Contribution would exceed the weekly contribution amount."
         }
 
-        contributionsByMember[memberId] = updatedPaid
+//        contributionsByMember[memberId] = updatedPaid
+        contributionsByWeek
+            .getValue(currentWeek)[memberId] = updatedPaid
     }
 
     fun contributionPaidBy(memberId: String): Money {
@@ -46,7 +55,10 @@ class SusuGroup(val weeklyContribution: Money) {
             "Member with id '$memberId' does not exist!"
         }
 
-        return contributionsByMember.getValue(memberId)
+//        return contributionsByMember.getValue(memberId)
+        return contributionsByWeek
+            .getValue(currentWeek)
+            .getValue(memberId)
     }
 
     fun outstandingContributionFor(memberId: String): Money {

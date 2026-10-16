@@ -210,6 +210,28 @@ class SusuGroupTest {
         )
     }
 
+    @Test
+    fun `new group starts at week one`() {
+        val group = SusuGroup(Money.fromCedis(50))
+
+        assertEquals(1, group.currentWeek)
+    }
+
+    @Test
+    fun `new week starts with no contributions paid`() {
+        val group = SusuGroup(Money.fromCedis(50))
+        val ama = Member("member-001", "Ama")
+
+        group.addMember(ama)
+
+        assertEquals(
+            Money.fromCedis(0),
+            group.contributionPaidBy(ama.id)
+        )
+    }
+
+
+
 
 
 }
