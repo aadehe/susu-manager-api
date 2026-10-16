@@ -3,14 +3,20 @@ package com.example.domain
 class SusuGroup(val weeklyContribution: Money) {
     var currentWeek: Int = 1
         private set
+
+    private val payouts = mutableListOf<Payout>()
+
     private val memberList = mutableListOf<Member>()
-//    private val contributionsByMember = mutableMapOf<String, Money>()
+
     private val contributionsByWeek =
         mutableMapOf<Int, MutableMap<String, Money>>()
 
 
     val members: List<Member>
         get() = memberList.toList()
+
+    val payoutHistory: List<Payout>
+        get() = payouts.toList()
 
     init {
         require(weeklyContribution.isPositive()){
@@ -19,6 +25,15 @@ class SusuGroup(val weeklyContribution: Money) {
     }
 
     fun addMember(member: Member) {
+        check(
+            currentWeek == 1 &&
+                    contributionsByWeek[currentWeek]?.values?.none {
+                        it.isPositive()
+                    } != false
+        ) {
+            "Members cannot be added after contributions have started or the first week has closed."
+        }
+
         require(memberList.none { it.id == member.id }) {
             "Member with id '${member.id}' already exist!"
         }
@@ -27,7 +42,6 @@ class SusuGroup(val weeklyContribution: Money) {
         contributionsByWeek
             .getOrPut(currentWeek) { mutableMapOf() }[member.id] =
             Money.fromPesewas(0)
-//        contributionsByMember[member.id] = Money.fromPesewas(0)
     }
 
     fun recordContribution(memberId: String, amount: Money) {
@@ -45,7 +59,6 @@ class SusuGroup(val weeklyContribution: Money) {
             "Contribution would exceed the weekly contribution amount."
         }
 
-//        contributionsByMember[memberId] = updatedPaid
         contributionsByWeek
             .getValue(currentWeek)[memberId] = updatedPaid
     }
@@ -55,7 +68,6 @@ class SusuGroup(val weeklyContribution: Money) {
             "Member with id '$memberId' does not exist!"
         }
 
-//        return contributionsByMember.getValue(memberId)
         return contributionsByWeek
             .getValue(currentWeek)
             .getValue(memberId)
@@ -71,6 +83,44 @@ class SusuGroup(val weeklyContribution: Money) {
         }
     }
 
+    fun closeWeek(): Payout {
+        check(memberList.isNotEmpty()) {
+            "Cannot close a week without any members."
+        }
 
+        val outstandingDues = memberList.mapNotNull { member ->
+            val outstanding = outstandingContributionFor(member.id)
 
+            if (outstanding.isPositive()) {
+                "${member.name}: ${outstanding.pesewas} pesewas outstanding"
+            } else {
+                null
+            }
+        }
+
+        check(outstandingDues.isEmpty()) {
+            "Cannot close week $currentWeek. Outstanding dues: " +
+                    outstandingDues.joinToString("; ")
+        }
+
+        val totalPot = memberList.fold(Money.fromPesewas(0)) { total, member ->
+            total + contributionPaidBy(member.id)
+        }
+
+        val recipientIndex = payouts.size % memberList.size
+        val payout = Payout(
+            week = currentWeek,
+            recipient = memberList[recipientIndex],
+            amount = totalPot
+        )
+
+        payouts.add(payout)
+        currentWeek++
+
+        contributionsByWeek[currentWeek] = memberList.associate { member ->
+            member.id to Money.fromPesewas(0)
+        }.toMutableMap()
+
+        return payout
+    }
 }

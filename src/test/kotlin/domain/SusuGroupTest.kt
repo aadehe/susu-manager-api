@@ -231,7 +231,111 @@ class SusuGroupTest {
     }
 
 
+    @Test
+    fun `week cannot close while a member owes money`() {
+        val group = SusuGroup(Money.fromCedis(50))
+        val ama = Member("member-001", "Ama")
+        val kofi = Member("member-002", "Kofi")
 
+        group.addMember(ama)
+        group.addMember(kofi)
 
+        group.recordContribution(ama.id, Money.fromCedis(50))
+        group.recordContribution(kofi.id, Money.fromCedis(30))
 
+        assertFailsWith<IllegalStateException> {
+            group.closeWeek()
+        }
+
+        assertEquals(1, group.currentWeek)
+        assertEquals(
+            Money.fromCedis(50),
+            group.contributionPaidBy(ama.id)
+        )
+        assertEquals(
+            Money.fromCedis(30),
+            group.contributionPaidBy(kofi.id)
+        )
+    }
+
+    @Test
+    fun `closing a fully paid week records the payout and advances the week`() {
+        val group = SusuGroup(Money.fromCedis(50))
+        val ama = Member("member-001", "Ama")
+        val kofi = Member("member-002", "Kofi")
+
+        group.addMember(ama)
+        group.addMember(kofi)
+
+        group.recordContribution(ama.id, Money.fromCedis(50))
+        group.recordContribution(kofi.id, Money.fromCedis(50))
+
+        val payout = group.closeWeek()
+
+        assertEquals(
+            Payout(
+                week = 1,
+                recipient = ama,
+                amount = Money.fromCedis(100)
+            ),
+            payout
+        )
+        assertEquals(2, group.currentWeek)
+        assertEquals(listOf(payout), group.payoutHistory)
+
+        assertEquals(
+            Money.fromCedis(0),
+            group.contributionPaidBy(ama.id)
+        )
+        assertEquals(
+            Money.fromCedis(0),
+            group.contributionPaidBy(kofi.id)
+        )
+    }
+
+    @Test
+    fun `payout recipient rotates to the next member in join order`() {
+        val group = SusuGroup(Money.fromCedis(50))
+        val ama = Member("member-001", "Ama")
+        val kofi = Member("member-002", "Kofi")
+
+        group.addMember(ama)
+        group.addMember(kofi)
+
+        // Week 1: Ama receives the first payout.
+        group.recordContribution(ama.id, Money.fromCedis(50))
+        group.recordContribution(kofi.id, Money.fromCedis(50))
+
+        val firstPayout = group.closeWeek()
+
+        // Week 2: Kofi should receive the next payout.
+        group.recordContribution(ama.id, Money.fromCedis(50))
+        group.recordContribution(kofi.id, Money.fromCedis(50))
+
+        val secondPayout = group.closeWeek()
+
+        assertEquals(ama, firstPayout.recipient)
+        assertEquals(kofi, secondPayout.recipient)
+        assertEquals(1, firstPayout.week)
+        assertEquals(2, secondPayout.week)
+        assertEquals(Money.fromCedis(100), secondPayout.amount)
+        assertEquals(listOf(firstPayout, secondPayout), group.payoutHistory)
+        assertEquals(3, group.currentWeek)
+    }
+
+    @Test
+    fun `cannot add a member after contributions have started`() {
+        val group = SusuGroup(Money.fromCedis(50))
+        val ama = Member("member-001", "Ama")
+        val kofi = Member("member-002", "Kofi")
+
+        group.addMember(ama)
+        group.recordContribution(ama.id, Money.fromCedis(20))
+
+        assertFailsWith<IllegalStateException> {
+            group.addMember(kofi)
+        }
+
+        assertEquals(listOf(ama), group.members)
+    }
 }
