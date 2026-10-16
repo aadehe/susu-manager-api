@@ -89,5 +89,87 @@ class SusuGroupTest {
         }
     }
 
+    @Test
+    fun `member can make a partial contribution`() {
+        val group = SusuGroup(Money.fromCedis(50))
+        val ama = Member("member-001", "Ama")
+        group.addMember(ama)
+
+        group.recordContribution(ama.id, Money.fromCedis(30))
+
+        assertEquals(
+            Money.fromCedis(30),
+            group.contributionPaidBy(ama.id)
+        )
+        assertEquals(
+            Money.fromCedis(20),
+            group.outstandingContributionFor(ama.id)
+        )
+    }
+
+    @Test
+    fun `multiple partial payments are accumulated`() {
+        val group = SusuGroup(Money.fromCedis(50))
+        val ama = Member("member-001", "Ama")
+        group.addMember(ama)
+
+        group.recordContribution(ama.id, Money.fromCedis(20))
+        group.recordContribution(ama.id, Money.fromCedis(30))
+
+        assertEquals(
+            Money.fromCedis(50),
+            group.contributionPaidBy(ama.id)
+        )
+        assertEquals(
+            Money.fromCedis(0),
+            group.outstandingContributionFor(ama.id)
+        )
+    }
+
+    @Test
+    fun `contribution from an unknown member is rejected`() {
+        val group = SusuGroup(Money.fromCedis(50))
+
+        assertFailsWith<IllegalArgumentException> {
+            group.recordContribution(
+                "unknown-member",
+                Money.fromCedis(10)
+            )
+        }
+    }
+
+    @Test
+    fun `zero contribution is rejected`() {
+        val group = SusuGroup(Money.fromCedis(50))
+        val ama = Member("member-001", "Ama")
+        group.addMember(ama)
+
+        assertFailsWith<IllegalArgumentException> {
+            group.recordContribution(
+                ama.id,
+                Money.fromCedis(0)
+            )
+        }
+    }
+
+    @Test
+    fun `overpayment is rejected`() {
+        val group = SusuGroup(Money.fromCedis(50))
+        val ama = Member("member-001", "Ama")
+        group.addMember(ama)
+
+        group.recordContribution(ama.id, Money.fromCedis(30))
+
+        assertFailsWith<IllegalArgumentException> {
+            group.recordContribution(ama.id, Money.fromCedis(25))
+        }
+
+        assertEquals(
+            Money.fromCedis(30),
+            group.contributionPaidBy(ama.id)
+        )
+    }
+
+
 
 }
